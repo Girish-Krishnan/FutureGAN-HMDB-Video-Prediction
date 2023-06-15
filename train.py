@@ -63,8 +63,6 @@ for epoch in range(config['epochs']):
         optimizerD.zero_grad()
         output = discriminator(frame1, real_frame2)
         errD_real = criterion(output, torch.ones_like(output))
-        print(type(frame1))
-        print(frame1.shape)
         fake_frame2 = generator(frame1)
         output = discriminator(frame1.detach(), fake_frame2.detach())
         errD_fake = criterion(output, torch.zeros_like(output))

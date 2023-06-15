@@ -56,6 +56,9 @@ if __name__ == "__main__":
     # Interpolate new frames to 320x240
     new_frames = [cv2.resize(frame, (320, 240)) for frame in new_frames]
 
+    # Add a red border to each image in new_frames, without changing the dimensions
+    new_frames = [cv2.copyMakeBorder(frame, 0, 0, 0, 0, cv2.BORDER_CONSTANT, value=[255, 0, 0]) for frame in new_frames]
+
     # Write the frames to a video file
     frames =  initial_frames + new_frames
     write_video(frames, output_path)

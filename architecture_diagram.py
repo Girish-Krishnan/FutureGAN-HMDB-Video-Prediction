@@ -14,8 +14,8 @@ y = torch.randn(1, 3, 64, 64)
 G_out = G(x)
 D_out = D(x, y)
 
-# Create the visualization
-dot = make_dot(G_out, params=dict(list(G.named_parameters()) + list(D.named_parameters())))
+# Create the visualization and arrange it to occupy two pages
+dot = make_dot((G_out, D_out), params=dict(G.named_parameters()), show_attrs=True, show_saved=True)
 
 # Display the graph
 dot.view()

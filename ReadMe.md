@@ -1,4 +1,4 @@
-# FutureGAN Video Prediction
+# FutureGAN Video Prediction on HMDB dataset
 
 ## Description
 
@@ -6,7 +6,7 @@ This repository contains the implementation of FutureGAN, a Generative Adversari
 
 ## Table of Contents
 
-- [FutureGAN Video Prediction](#futuregan-video-prediction)
+- [FutureGAN Video Prediction on HMDB dataset](#futuregan-video-prediction-on-hmdb-dataset)
   - [Description](#description)
   - [Table of Contents](#table-of-contents)
   - [Installation](#installation)
@@ -72,6 +72,7 @@ The repository has the following structure:
 - `plot_eval_metrics.py` - Plots the evaluation metrics over epochs.
 - `predict_video.py` - Uses the trained model to predict future frames of a video and creates a video of the predictions.
 - `requirements.txt` - Contains all the python packages required to run the project.
+- `config.yaml` - Contains all the hyperparameters for training the FutureGAN.
 
 ## Contact
 
