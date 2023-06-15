@@ -1,1 +1,0 @@
-# StyleGAN-Anime
