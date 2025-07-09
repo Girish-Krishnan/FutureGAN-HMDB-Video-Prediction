@@ -1,2 +1,3 @@
 learning_rate: 0.0002
-batch_size: 64epochs: 500
+batch_size: 64
+epochs: 500
