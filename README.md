@@ -1,6 +1,8 @@
 # FutureGAN Video Prediction on the HMDB Dataset
 
-![](./media/epochs.gif)
+<div align="center">
+  <img src="./media/epochs.gif" alt="Training epochs animation" />
+</div>
 
 |![](./media/fid.png)|![](./media/inception_score.png)|
 |---|---|
