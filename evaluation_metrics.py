@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import inception_v3
 from scipy.linalg import sqrtm
@@ -7,8 +8,16 @@ import numpy as np
 class EvaluationMetrics:
     def __init__(self, device):
         self.device = device
-        self.inception_model = inception_v3(pretrained=True).to(device)
+        self.inception_model = inception_v3(
+            pretrained=True, aux_logits=False, transform_input=False
+        ).to(device)
         self.inception_model.eval()
+
+        self.fid_model = inception_v3(
+            pretrained=True, aux_logits=False, transform_input=False
+        ).to(device)
+        self.fid_model.fc = nn.Identity()
+        self.fid_model.eval()
 
     def calculate_inception_score(self, images, num_splits=10):
         images = F.interpolate(images, size=(299, 299))
@@ -25,20 +34,25 @@ class EvaluationMetrics:
         return np.mean(scores), np.std(scores)
 
     def calculate_frechet_inception_distance(self, real_images, generated_images):
-        real_images = F.interpolate(real_images, size=(299, 299))
-        generated_images = F.interpolate(generated_images, size=(299, 299))
+        real_images = F.interpolate(real_images, size=(299, 299), mode="bilinear", align_corners=False)
+        generated_images = F.interpolate(generated_images, size=(299, 299), mode="bilinear", align_corners=False)
 
-        real_preds = self.inception_model(real_images).detach().cpu().numpy()
-        gen_preds = self.inception_model(generated_images).detach().cpu().numpy()
+        with torch.no_grad():
+            real_features = self.fid_model(real_images).view(real_images.size(0), -1)
+            gen_features = self.fid_model(generated_images).view(generated_images.size(0), -1)
 
-        mu1, sigma1 = real_preds.mean(axis=0), np.cov(real_preds, rowvar=False)
-        mu2, sigma2 = gen_preds.mean(axis=0), np.cov(gen_preds, rowvar=False)
+        real_features = real_features.cpu().numpy()
+        gen_features = gen_features.cpu().numpy()
 
-        ssdiff = np.sum((mu1 - mu2)**2.0)
+        mu1 = np.mean(real_features, axis=0)
+        mu2 = np.mean(gen_features, axis=0)
+        sigma1 = np.cov(real_features, rowvar=False)
+        sigma2 = np.cov(gen_features, rowvar=False)
+
         covmean = sqrtm(sigma1.dot(sigma2))
-
         if np.iscomplexobj(covmean):
             covmean = covmean.real
 
-        fid = ssdiff + np.trace(sigma1 + sigma2 - 2.0 * covmean)
-        return fid
+        diff = mu1 - mu2
+        fid = diff.dot(diff) + np.trace(sigma1 + sigma2 - 2.0 * covmean)
+        return float(fid)
