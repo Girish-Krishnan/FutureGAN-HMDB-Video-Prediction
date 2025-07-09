@@ -6,7 +6,7 @@ FutureGAN is a lightweight demonstration of a generative adversarial network use
 
 1. Clone the repository
    ```bash
-   git clone <repo-url>
+   git clone https://github.com/Girish-Krishnan/Video_Prediction
    ```
 2. Install the required python packages
    ```bash
