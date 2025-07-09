@@ -1,79 +1,66 @@
-# FutureGAN Video Prediction on HMDB dataset
+# FutureGAN Video Prediction
 
-## Description
-
-This repository contains the implementation of FutureGAN, a Generative Adversarial Network for video prediction. FutureGAN is able to generate future frames of a video given a sequence of previous frames. This project can be beneficial for multiple applications such as video prediction for surveillance videos, autonomous vehicles, weather forecasting, etc.
-
-## Table of Contents
-
-- [FutureGAN Video Prediction on HMDB dataset](#futuregan-video-prediction-on-hmdb-dataset)
-  - [Description](#description)
-  - [Table of Contents](#table-of-contents)
-  - [Installation](#installation)
-  - [Getting the Dataset](#getting-the-dataset)
-  - [Usage](#usage)
-  - [Project Structure](#project-structure)
+FutureGAN is a lightweight demonstration of a generative adversarial network used for video frame prediction. The codebase is intentionally simple and serves as a starting point for experimenting with GAN based video generation.
 
 ## Installation
 
-To run this project, you will need Python 3.x and the following Python libraries installed:
+1. Clone the repository
+   ```bash
+   git clone <repo-url>
+   ```
+2. Install the required python packages
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-- [NumPy](http://www.numpy.org/)
-- [PyTorch](https://pytorch.org/)
-- [Matplotlib](https://matplotlib.org/)
-- [OpenCV](https://opencv.org/)
+## Dataset
 
-To install the project, do the following:
+The project expects a folder of videos where every video is a directory of image frames. The original experiments used the HMDB dataset which can be downloaded from [this link](https://drive.google.com/file/d/1yPMWhr_-4YZenPI_HRNoGVQGDsENKwKb/view). After extracting the archive place the data inside `data/` so the training frames are available under `data/training_data` and test frames under `data/testing_data`.
 
-1. Clone the repo
-    ```
-    git clone https://github.com/Girish-Krishnan/Video_Prediction.git
-    ```
-2. Install the requirements
-    ```
-    pip install -r requirements.txt
-    ```
+## Training
 
-## Getting the Dataset
+The training process is controlled via a small YAML configuration file. By default `config.yaml` is used. All command line tools accept custom paths allowing you to keep outputs organised.
 
-The dataset can be found as a `.zip` file on this [Google Drive link](https://drive.google.com/file/d/1yPMWhr_-4YZenPI_HRNoGVQGDsENKwKb/view). Extract it to the `./data` folder.
-
-## Usage
-
-To train the model:
-
-```
-python train.py --data_root <path_to_data_directory> --n_epochs <number_of_epochs>
+```bash
+python train.py --config config.yaml --data_root data/training_data --output_dir runs/experiment1
 ```
 
-To evaluate the model and save metrics:
+This command stores checkpoints, images and logs inside `runs/experiment1`.
 
-```
-python evaluate.py --model_path <path_to_model_checkpoint> --data_root <path_to_data_directory>
-```
+## Visualisation Utilities
 
-To plot the saved metrics:
+After training you can inspect the metrics and losses or generate videos using the helper scripts:
 
-```
-python plot_eval_metrics.py --metrics_path <path_to_saved_metrics>
-```
+- **Plot evaluation metrics**
+  ```bash
+  python plot_eval_metrics.py --metrics runs/experiment1/metrics.csv --output_dir plots
+  ```
+- **Plot losses**
+  ```bash
+  python plot_losses.py --loss_g runs/experiment1/lossesG.npy --loss_d runs/experiment1/lossesD.npy
+  ```
+- **Predict a new video**
+  ```bash
+  python predict_video.py --model_path runs/experiment1/generator.pth \
+      --video_path data/testing_data/video1 --output prediction.mp4
+  ```
+- **Visualise predictions**
+  ```bash
+  python visualize_predictions.py --model runs/experiment1/generator.pth \
+      --data_root data/testing_data --video_subdir video1
+  ```
+- **Quick test on a few examples**
+  ```bash
+  python test.py --model runs/experiment1/generator.pth --data_root data/testing_data
+  ```
 
-To generate a video prediction:
+## Repository Structure
 
-```
-python predict_video.py --model_path <path_to_model_checkpoint> --data_root <path_to_data_directory> --output_path <path_for_generated_video>
-```
+- `models.py` &ndash; Generator and Discriminator implementations.
+- `dataset.py` &ndash; PyTorch dataset for loading consecutive video frames.
+- `train.py` &ndash; Training entrypoint.
+- `predict_video.py`, `visualize_predictions.py`, `plot_eval_metrics.py`, `plot_losses.py`, `test.py` &ndash; Utility scripts using professional command line interfaces.
+- `evaluation_metrics.py` &ndash; Helper class computing Inception Score and FID.
+- `config.yaml` &ndash; Example hyperparameter configuration.
+- `requirements.txt` &ndash; Python package requirements.
 
-
-## Project Structure
-
-The repository has the following structure:
-
-- `models.py` - Contains the PyTorch implementation of the Generator and Discriminator for FutureGAN.
-- `dataset.py` - Contains the custom PyTorch dataset for video data.
-- `train.py` - Trains the FutureGAN model using the specified training data.
-- `evaluate.py` - Evaluates the model and saves the evaluation metrics (MSE and PSNR).
-- `plot_eval_metrics.py` - Plots the evaluation metrics over epochs.
-- `predict_video.py` - Uses the trained model to predict future frames of a video and creates a video of the predictions.
-- `requirements.txt` - Contains all the python packages required to run the project.
-- `config.yaml` - Contains all the hyperparameters for training the FutureGAN.

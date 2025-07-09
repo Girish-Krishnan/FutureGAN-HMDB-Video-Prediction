@@ -1,8 +1,14 @@
-import torch
+"""Generate a predicted video from a trained generator."""
+
+import argparse
+import glob
+from pathlib import Path
+
 import cv2
 import numpy as np
+import torch
+
 from models import Generator
-import glob
 
 def load_model(model_path):
     model = Generator()
@@ -18,9 +24,9 @@ def process_image(img):
     img = torch.from_numpy(img).permute(2, 0, 1).float()  # Convert to torch tensor and rearrange dimensions
     return img
 
-def write_video(frames, filename):
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(filename, fourcc, 30.0, (320, 240))
+def write_video(frames, filename, size=(320, 240)):
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(str(filename), fourcc, 30.0, size)
     for frame in frames:
         out.write(cv2.cvtColor(np.uint8(frame), cv2.COLOR_RGB2BGR))
     out.release()
@@ -37,28 +43,39 @@ def visualize_model(generator, initial_frames, num_predicted_frames):
 
     return new_frames
 
-if __name__ == "__main__":
-    # Define the paths
-    model_path = 'generator.pth'
-    video_path = './data/testing_data/video1/'
-    output_path = 'predicted_video.mp4'
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Generate a predicted video")
+    parser.add_argument("--model_path", default="generator.pth", help="Trained generator path")
+    parser.add_argument("--video_path", default="./data/testing_data/video1/", help="Directory containing input frames")
+    parser.add_argument("--output", default="predicted_video.mp4", help="Output video file")
+    parser.add_argument("--num_frames", type=int, default=20, help="Number of frames to generate")
+    return parser.parse_args()
 
-    # Load the model
-    generator = load_model(model_path)
 
-    # Load frames from the video_path directory
-    initial_frames = [cv2.cvtColor(cv2.imread(frame), cv2.COLOR_BGR2RGB) for frame in sorted(glob.glob(video_path + '*.jpg'))]
+def main() -> None:
+    args = parse_args()
 
-    # Generate the video
-    num_predicted_frames = 20  # Number of frames to generate
-    new_frames = visualize_model(generator, initial_frames, num_predicted_frames)
-    new_frames = [np.array(frame.detach())[0,:,:,:].transpose(1, 2, 0) * 255 for frame in new_frames] # Convert frames back to numpy arrays with shape (H, W, C) and range [0, 255]
-    # Interpolate new frames to 320x240
+    generator = load_model(args.model_path)
+
+    initial_frames = [
+        cv2.cvtColor(cv2.imread(frame), cv2.COLOR_BGR2RGB)
+        for frame in sorted(glob.glob(str(Path(args.video_path) / "*.jpg")))
+    ]
+
+    new_frames = visualize_model(generator, initial_frames, args.num_frames)
+    new_frames = [
+        np.array(frame.detach())[0, :, :, :].transpose(1, 2, 0) * 255
+        for frame in new_frames
+    ]
     new_frames = [cv2.resize(frame, (320, 240)) for frame in new_frames]
+    new_frames = [
+        cv2.copyMakeBorder(frame, 0, 0, 0, 0, cv2.BORDER_CONSTANT, value=[255, 0, 0])
+        for frame in new_frames
+    ]
 
-    # Add a red border to each image in new_frames, without changing the dimensions
-    new_frames = [cv2.copyMakeBorder(frame, 0, 0, 0, 0, cv2.BORDER_CONSTANT, value=[255, 0, 0]) for frame in new_frames]
+    frames = initial_frames + new_frames
+    write_video(frames, args.output)
 
-    # Write the frames to a video file
-    frames =  initial_frames + new_frames
-    write_video(frames, output_path)
+
+if __name__ == "__main__":
+    main()
