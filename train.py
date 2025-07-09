@@ -57,7 +57,9 @@ def main() -> None:
 
     device_str = args.device
     if device_str is None:
-        if torch.backends.mps.is_available() and torch.backends.mps.is_built():
+        if torch.cuda.is_available():
+            device_str = "cuda"
+        elif torch.backends.mps.is_available() and torch.backends.mps.is_built():
             device_str = "mps"
         else:
             device_str = "cpu"
