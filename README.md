@@ -73,7 +73,7 @@ flowchart TD
   G --> I[Save Images & Metrics]
   H --> I
 ```
-## visualization Utilities
+## Visualization Utilities
 
 After training you can inspect the metrics and losses or generate videos using the helper scripts:
 
