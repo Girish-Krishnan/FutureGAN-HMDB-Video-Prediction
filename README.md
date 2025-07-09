@@ -9,6 +9,31 @@
 
 FutureGAN is a lightweight demonstration of a generative adversarial network used for video frame prediction. The codebase is intentionally simple and serves as a starting point for experimenting with GAN based video generation.
 
+## Model Architecture
+
+The generator follows an encoder-decoder design while the discriminator inspects a pair of frames. The diagrams below summarise the key layers.
+
+```mermaid
+flowchart TD
+  GI[Input Frame] --> G1[Conv2d 3→64<br/>BatchNorm<br/>ReLU]
+  G1 --> G2[Conv2d 64→128<br/>BatchNorm<br/>ReLU]
+  G2 --> G3[Conv2d 128→256<br/>BatchNorm<br/>ReLU]
+  G3 --> G4[ConvTranspose2d 256→128<br/>BatchNorm<br/>ReLU]
+  G4 --> G5[ConvTranspose2d 128→64<br/>BatchNorm<br/>ReLU]
+  G5 --> G6[ConvTranspose2d 64→3<br/>Tanh]
+  G6 --> GO[Predicted Frame]
+```
+
+```mermaid
+flowchart TD
+  D1[Frame t] --> DC[Concat]
+  D2[Frame t+1] --> DC
+  DC --> DL1[Conv2d 6→64 + LeakyReLU]
+  DL1 --> DL2[Conv2d 64→128<br/>BatchNorm<br/>LeakyReLU]
+  DL2 --> DL3[Conv2d 128→256<br/>BatchNorm<br/>LeakyReLU]
+  DL3 --> DL4[Conv2d 256→1<br/>Sigmoid]
+  DL4 --> DO[Real/Fake]
+```
 ## Installation
 
 1. Clone the repository
@@ -34,6 +59,20 @@ python train.py --config config.yaml --data_root data/training_data --output_dir
 
 This command stores checkpoints, images and logs inside `runs/experiment1`.
 
+## Training and Evaluation Flow
+
+```mermaid
+flowchart TD
+  A[Video Frames] --> B[VideoDataset]
+  B --> C[DataLoader]
+  C --> D[Training Loop]
+  D --> E[Update Discriminator]
+  D --> F[Update Generator]
+  F --> G[Generated Frames]
+  D --> H[Compute IS/FID]
+  G --> I[Save Images & Metrics]
+  H --> I
+```
 ## visualization Utilities
 
 After training you can inspect the metrics and losses or generate videos using the helper scripts:
