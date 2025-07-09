@@ -1,4 +1,9 @@
-# FutureGAN Video Prediction
+# FutureGAN Video Prediction on the HMDB Dataset
+
+![](./media/epochs.gif)
+
+|![](./media/fid.png)|![](./media/inception_score.png)|
+|---|---|
 
 FutureGAN is a lightweight demonstration of a generative adversarial network used for video frame prediction. The codebase is intentionally simple and serves as a starting point for experimenting with GAN based video generation.
 
@@ -27,7 +32,7 @@ python train.py --config config.yaml --data_root data/training_data --output_dir
 
 This command stores checkpoints, images and logs inside `runs/experiment1`.
 
-## Visualisation Utilities
+## visualization Utilities
 
 After training you can inspect the metrics and losses or generate videos using the helper scripts:
 
@@ -44,7 +49,7 @@ After training you can inspect the metrics and losses or generate videos using t
   python predict_video.py --model_path runs/experiment1/generator.pth \
       --video_path data/testing_data/video1 --output prediction.mp4
   ```
-- **Visualise predictions**
+- **Visualize predictions**
   ```bash
   python visualize_predictions.py --model runs/experiment1/generator.pth \
       --data_root data/testing_data --video_subdir video1

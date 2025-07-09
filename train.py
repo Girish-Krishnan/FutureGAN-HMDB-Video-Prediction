@@ -1,4 +1,4 @@
-"""Training script for FutureGAN."""
+"""Training script for FutureGAN with new evaluation metrics."""
 
 from __future__ import annotations
 
@@ -17,149 +17,149 @@ from torchvision.utils import make_grid
 from tqdm import tqdm
 
 from dataset import VideoDataset
-from evaluation_metrics import EvaluationMetrics
+from evaluation_metrics import InceptionScore, FrechetInceptionDistance
 from models import Discriminator, Generator
 import yaml
 
 warnings.filterwarnings("ignore")
 
 
+# -----------------------------------------------------------------------------
+# Argument parsing
+# -----------------------------------------------------------------------------
+
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Train FutureGAN")
-    parser.add_argument(
-        "--config",
-        default="config.yaml",
-        help="Path to a YAML configuration file",
-    )
-    parser.add_argument(
-        "--data_root",
-        default="data/training_data",
-        help="Directory with training frames",
-    )
-    parser.add_argument(
-        "--output_dir",
-        default="outputs",
-        help="Directory to write checkpoints and logs",
-    )
-    parser.add_argument(
-        "--device",
-        default=None,
-        help="Device to run on (cpu, cuda, etc.). Defaults to auto-detection.",
-    )
+    parser.add_argument("--config", default="config.yaml", help="Path to a YAML configuration file")
+    parser.add_argument("--data_root", default="data/training_data", help="Directory with training frames")
+    parser.add_argument("--output_dir", default="outputs", help="Directory to write checkpoints and logs")
+    parser.add_argument("--device", default=None, help="Device string (cpu, cuda, mps)")
     return parser.parse_args()
+
+
+# -----------------------------------------------------------------------------
+# Main training loop
+# -----------------------------------------------------------------------------
 
 def main() -> None:
     args = parse_args()
 
-    with open(args.config, "r") as file:
-        config = yaml.safe_load(file)
+    # ------------------------------------------------------------------
+    # Configuration
+    # ------------------------------------------------------------------
+    with open(args.config, "r") as f:
+        cfg = yaml.safe_load(f)
 
-    device_str = args.device
-    if device_str is None:
-        if torch.cuda.is_available():
-            device_str = "cuda"
-        elif torch.backends.mps.is_available() and torch.backends.mps.is_built():
-            device_str = "mps"
-        else:
-            device_str = "cpu"
+    # Device
+    if args.device is not None:
+        device_str = args.device
+    elif torch.cuda.is_available():
+        device_str = "cuda"
+    elif torch.backends.mps.is_available() and torch.backends.mps.is_built():
+        device_str = "mps"
+    else:
+        device_str = "cpu"
     device = torch.device(device_str)
     print("Using device:", device)
-    metrics = EvaluationMetrics(device)
 
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    images_dir = output_dir / "generated_images"
-    images_dir.mkdir(exist_ok=True)
+    # Metrics
+    inception_metric = InceptionScore(device)
+    fid_metric = FrechetInceptionDistance(device)
 
-    # Create data loaders
-    transform = transforms.Compose([
-        transforms.Resize((64, 64)),
-        transforms.ToTensor(),
-    ])
-    training_data = VideoDataset(args.data_root, transform)
-    training_loader = DataLoader(
-        training_data, batch_size=config["batch_size"], shuffle=True
-    )
+    # Output dirs
+    out_dir = Path(args.output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    img_dir = out_dir / "generated_images"
+    img_dir.mkdir(exist_ok=True)
 
-    # Initialize the networks
-    generator = Generator().to(device)
-    discriminator = Discriminator().to(device)
+    # Data
+    transform = transforms.Compose([transforms.Resize((64, 64)), transforms.ToTensor()])
+    train_data = VideoDataset(args.data_root, transform)
+    loader = DataLoader(train_data, batch_size=cfg["batch_size"], shuffle=True)
 
-    # Loss and Optimizer
+    # Models
+    gen = Generator().to(device)
+    disc = Discriminator().to(device)
+
     criterion = nn.BCELoss()
-    optimizerG = torch.optim.Adam(generator.parameters(), lr=config["learning_rate"])
-    optimizerD = torch.optim.Adam(discriminator.parameters(), lr=config["learning_rate"])
+    opt_g = torch.optim.Adam(gen.parameters(), lr=cfg["learning_rate"])
+    opt_d = torch.optim.Adam(disc.parameters(), lr=cfg["learning_rate"])
 
-    # Loss logs
-    lossesG: list[float] = []
-    lossesD: list[float] = []
-
-    metrics_csv = output_dir / "metrics.csv"
+    # Logs
+    loss_g_hist: list[float] = []
+    loss_d_hist: list[float] = []
+    metrics_csv = out_dir / "metrics.csv"
     with metrics_csv.open("w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["Epoch", "Inception Score", "FID"])
+        csv.writer(f).writerow(["Epoch", "IS", "FID"])
 
-    for epoch in range(config["epochs"]):
-        progress_bar = tqdm(enumerate(training_loader), total=len(training_loader))
-        for i, (frame1, real_frame2) in progress_bar:
+    # ------------------------------------------------------------------
+    # Epoch loop
+    # ------------------------------------------------------------------
+    for epoch in range(cfg["epochs"]):
+        pbar = tqdm(enumerate(loader), total=len(loader))
+        for i, (frame1, real_frame2) in pbar:
             frame1 = frame1.to(device)
             real_frame2 = real_frame2.to(device)
 
-            optimizerD.zero_grad()
-            output = discriminator(frame1, real_frame2)
-            errD_real = criterion(output, torch.ones_like(output))
-            fake_frame2 = generator(frame1)
-            output = discriminator(frame1.detach(), fake_frame2.detach())
-            errD_fake = criterion(output, torch.zeros_like(output))
-            errD = errD_real + errD_fake
-            errD.backward()
-            optimizerD.step()
+            # --------------------------
+            # Update Discriminator
+            # --------------------------
+            opt_d.zero_grad()
+            out_real = disc(frame1, real_frame2)
+            err_d_real = criterion(out_real, torch.ones_like(out_real))
 
-            optimizerG.zero_grad()
-            output = discriminator(frame1, fake_frame2)
-            errG = criterion(output, torch.ones_like(output))
-            errG.backward()
-            optimizerG.step()
+            fake_frame2 = gen(frame1)
+            out_fake = disc(frame1.detach(), fake_frame2.detach())
+            err_d_fake = criterion(out_fake, torch.zeros_like(out_fake))
 
-            progress_bar.set_description(
-                f"Epoch {epoch + 1} [{i + 1}/{len(training_loader)}]..."
-            )
+            err_d = err_d_real + err_d_fake
+            err_d.backward()
+            opt_d.step()
 
+            # --------------------------
+            # Update Generator
+            # --------------------------
+            opt_g.zero_grad()
+            out_g = disc(frame1, fake_frame2)
+            err_g = criterion(out_g, torch.ones_like(out_g))
+            err_g.backward()
+            opt_g.step()
+
+            pbar.set_description(f"Epoch {epoch + 1} [{i + 1}/{len(loader)}]")
+
+        # ------------------------------------------------------------------
+        # Evaluation at epoch end
+        # ------------------------------------------------------------------
         with torch.no_grad():
-            real_images, _ = next(iter(training_loader))
-            real_images = real_images.to(device)
-            fake_images = generator(real_images).detach()
+            real_batch, _ = next(iter(loader))
+            real_batch = real_batch.to(device)
+            fake_batch = gen(real_batch).detach()
 
-            grid_images = (
-                make_grid(fake_images[:16], nrow=4, normalize=True)
-                .permute(1, 2, 0)
-                .cpu()
-                .numpy()
-            )
-            plt.imshow(grid_images)
+            # Save grid for quick visual check
+            grid = make_grid(fake_batch[:16], nrow=4, normalize=True).permute(1, 2, 0).cpu().numpy()
+            plt.imshow(grid)
             plt.axis("off")
-            plt.savefig(images_dir / f"epoch_{epoch}.png")
+            plt.savefig(img_dir / f"epoch_{epoch}.png")
             plt.close()
 
-            inception_score_mean, inception_score_std = metrics.calculate_inception_score(
-                fake_images
-            )
-            fid = metrics.calculate_frechet_inception_distance(real_images, fake_images)
+            is_mean, is_std = inception_metric(fake_batch)
+            fid_val = fid_metric(real_batch, fake_batch)
 
+        # Log metrics
         with metrics_csv.open("a", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow([epoch, inception_score_mean, fid])
+            csv.writer(f).writerow([epoch, is_mean, fid_val])
 
-        lossesG.append(errG.item())
-        lossesD.append(errD.item())
-        print(f"Epoch: {epoch}, D loss: {errD.item()}, G loss: {errG.item()}")
-        print(f"Inception score: {inception_score_mean} ± {inception_score_std}")
-        print(f"FID: {fid}")
+        loss_g_hist.append(err_g.item())
+        loss_d_hist.append(err_d.item())
+        print(f"Epoch {epoch + 1}: D {err_d.item():.4f}, G {err_g.item():.4f}, IS {is_mean:.3f}±{is_std:.3f}, FID {fid_val:.3f}")
 
-    np.save(output_dir / "lossesG.npy", np.array(lossesG))
-    np.save(output_dir / "lossesD.npy", np.array(lossesD))
-    torch.save(generator.state_dict(), output_dir / "generator.pth")
+    # ------------------------------------------------------------------
+    # Save final artifacts
+    # ------------------------------------------------------------------
+    np.save(out_dir / "lossesG.npy", np.array(loss_g_hist))
+    np.save(out_dir / "lossesD.npy", np.array(loss_d_hist))
+    torch.save(gen.state_dict(), out_dir / "generator.pth")
 
 
 if __name__ == "__main__":
