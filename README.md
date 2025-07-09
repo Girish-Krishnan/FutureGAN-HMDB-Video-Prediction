@@ -10,9 +10,9 @@ This repository contains the implementation of FutureGAN, a Generative Adversari
   - [Description](#description)
   - [Table of Contents](#table-of-contents)
   - [Installation](#installation)
+  - [Getting the Dataset](#getting-the-dataset)
   - [Usage](#usage)
   - [Project Structure](#project-structure)
-  - [Contact](#contact)
 
 ## Installation
 
@@ -33,6 +33,10 @@ To install the project, do the following:
     ```
     pip install -r requirements.txt
     ```
+
+## Getting the Dataset
+
+The dataset can be found as a `.zip` file on this [Google Drive link](https://drive.google.com/file/d/1yPMWhr_-4YZenPI_HRNoGVQGDsENKwKb/view). Extract it to the `./data` folder.
 
 ## Usage
 
@@ -73,10 +77,3 @@ The repository has the following structure:
 - `predict_video.py` - Uses the trained model to predict future frames of a video and creates a video of the predictions.
 - `requirements.txt` - Contains all the python packages required to run the project.
 - `config.yaml` - Contains all the hyperparameters for training the FutureGAN.
-
-## Contact
-
-Feel free to contact us if you have any questions. Our emails are:
-
-- gikrishnan@ucsd.edu
-- dadoming@ucsd.edu
