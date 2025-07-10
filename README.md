@@ -1,5 +1,9 @@
 # FutureGAN Video Prediction on the HMDB Dataset
 
+Contributors: *Girish Krishnan and Dallas Dominguez*
+
+---
+
 <div align="center">
   <img src="./media/epochs.gif" alt="Training epochs animation" />
 </div>
